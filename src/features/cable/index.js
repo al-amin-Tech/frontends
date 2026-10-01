@@ -1,0 +1,1 @@
+export { default as CablePage } from "./pages/CablePage";

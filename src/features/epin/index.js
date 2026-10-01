@@ -1,0 +1,1 @@
+export { default as EpinPage } from "./pages/EpinPage";

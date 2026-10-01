@@ -1,0 +1,1 @@
+export { default as ElectricityPage } from "./pages/ElectricityPage";

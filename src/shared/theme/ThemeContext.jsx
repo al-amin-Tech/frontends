@@ -1,0 +1,8 @@
+// src/shared/theme/ThemeContext.jsx
+
+import { createContext } from "react";
+
+export const ThemeContext =
+  createContext(null);
+
+export default ThemeContext;

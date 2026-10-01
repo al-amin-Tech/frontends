@@ -1,0 +1,329 @@
+
+import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+import {
+  Alert,
+  Button,
+  Card,
+  PageLoader,
+} from "../../../shared/components/ui";
+
+import ROUTES from "../../../shared/constants/routes";
+
+import useNotifications from "../hooks/useNotifications";
+import useMarkNotificationAsRead from "../hooks/useMarkNotificationAsRead";
+import useMarkAllNotificationsAsRead from "../hooks/useMarkAllNotificationsAsRead";
+
+import NotificationList from "../components/NotificationList";
+import NotificationEmpty from "../components/NotificationEmpty";
+
+export default function NotificationsPage() {
+  const navigate = useNavigate();
+
+  const [page, setPage] = useState(1);
+
+  const limit = 20;
+
+  const {
+    data,
+    isLoading,
+    isFetching,
+    error,
+    refetch,
+  } = useNotifications({
+    page,
+    limit,
+  });
+
+  const markAsReadMutation =
+    useMarkNotificationAsRead();
+
+  const markAllAsReadMutation =
+    useMarkAllNotificationsAsRead();
+
+  const notifications =
+    data?.data || [];
+
+  const unreadCount =
+    Number(
+      data?.unread_count ?? 0
+    );
+
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }, [page]);
+
+  const handleNotificationClick =
+    useCallback(
+      async (notification) => {
+        const notificationId =
+          notification?.id;
+
+        const isUnread =
+          Number(notification?.is_read) === 0 ||
+          notification?.is_read === false;
+
+        if (
+          isUnread &&
+          notificationId &&
+          !markAsReadMutation.isPending
+        ) {
+          try {
+            await markAsReadMutation.mutateAsync(
+              notificationId
+            );
+          } catch (error) {
+            await Alert({
+              type: "error",
+              title: "Unable to update notification",
+              message:
+                error?.response?.data?.message ||
+                error?.message ||
+                "Unable to mark notification as read.",
+            });
+
+            return;
+          }
+        }
+
+        const purchaseReference =
+          notification?.metadata?.purchaseRef;
+
+        if (purchaseReference) {
+          navigate(
+            ROUTES.PURCHASE_DETAILS.replace(
+              ":reference",
+              encodeURIComponent(
+                purchaseReference
+              )
+            )
+          );
+        }
+      },
+      [
+        navigate,
+        markAsReadMutation,
+      ]
+    );
+
+  const handleMarkAllAsRead =
+    useCallback(async () => {
+      if (
+        unreadCount <= 0 ||
+        markAllAsReadMutation.isPending
+      ) {
+        return;
+      }
+
+      try {
+        await markAllAsReadMutation.mutateAsync();
+
+        await Alert({
+          type: "success",
+          title: "Notifications Updated",
+          message:
+            "All notifications have been marked as read.",
+        });
+      } catch (error) {
+        await Alert({
+          type: "error",
+          title: "Update Failed",
+          message:
+            error?.response?.data?.message ||
+            error?.message ||
+            "Unable to mark notifications as read.",
+        });
+
+        markAllAsReadMutation.reset();
+      }
+    }, [
+      unreadCount,
+      markAllAsReadMutation,
+    ]);
+
+  const handleNextPage =
+    useCallback(() => {
+      if (
+        notifications.length === limit
+      ) {
+        setPage(
+          (currentPage) =>
+            currentPage + 1
+        );
+      }
+    }, [notifications.length]);
+
+  const handlePreviousPage =
+    useCallback(() => {
+      setPage((currentPage) =>
+        Math.max(1, currentPage - 1)
+      );
+    }, []);
+
+  if (isLoading) {
+    return (
+      <div className="mx-auto max-w-2xl pb-24">
+        <PageLoader />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-6 pb-24 p-6">
+
+        <div>
+          <h1 className="text-2xl font-bold">
+            Notifications
+          </h1>
+
+          <p className="mt-2 text-gray-500">
+            We couldn't load your notifications.
+          </p>
+        </div>
+
+        <Card>
+          <div className="space-y-4 text-center">
+
+            <p className="text-sm text-red-500">
+              {error?.response?.data?.message ||
+                error?.message ||
+                "Unable to load notifications."}
+            </p>
+
+            <Button
+              type="button"
+              onClick={() => refetch()}
+              loading={isFetching}
+              disabled={isFetching}
+            >
+              Try Again
+            </Button>
+
+          </div>
+        </Card>
+
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-2xl space-y-6 pb-24 p-6">
+
+      {/* Header */}
+
+      <div className="flex items-start justify-between gap-4">
+
+        <div>
+          <h1 className="text-2xl font-bold">
+            Notifications
+          </h1>
+
+          <p className="mt-2 text-gray-500">
+            Stay updated with your account
+            activity and transactions.
+          </p>
+        </div>
+
+        {unreadCount > 0 && (
+          <div className="shrink-0 rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-700">
+            {unreadCount} unread
+          </div>
+        )}
+
+      </div>
+
+      {/* Mark all as read */}
+
+      {unreadCount > 0 && (
+        <div className="flex justify-end">
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={
+              handleMarkAllAsRead
+            }
+            loading={
+              markAllAsReadMutation.isPending
+            }
+            disabled={
+              markAllAsReadMutation.isPending
+            }
+          >
+            Mark all as read
+          </Button>
+
+        </div>
+      )}
+
+      {/* Notification list */}
+
+      {notifications.length === 0 ? (
+        <NotificationEmpty />
+      ) : (
+        <>
+          <NotificationList
+            notifications={notifications}
+            onNotificationClick={
+              handleNotificationClick
+            }
+          />
+
+          {/* Pagination */}
+
+          <div className="flex items-center justify-between gap-3 pt-2">
+
+            <Button
+              type="button"
+              variant="outline"
+              disabled={
+                page === 1 ||
+                isFetching
+              }
+              onClick={
+                handlePreviousPage
+              }
+            >
+              Previous
+            </Button>
+
+            <span className="text-sm text-gray-500">
+              Page {page}
+            </span>
+
+            <Button
+              type="button"
+              variant="outline"
+              disabled={
+                notifications.length <
+                  limit ||
+                isFetching
+              }
+              onClick={
+                handleNextPage
+              }
+            >
+              Next
+            </Button>
+
+          </div>
+        </>
+      )}
+
+      {/* Background refetch indicator */}
+
+      {isFetching && !isLoading && (
+        <p className="text-center text-xs text-gray-400">
+          Updating notifications...
+        </p>
+      )}
+
+    </div>
+  );
+}

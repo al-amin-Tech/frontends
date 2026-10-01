@@ -1,0 +1,9 @@
+export const PURCHASE_CODES = {
+  PIN_NOT_SET: "TRANSACTIONS_NOT_SET",
+  PROCESSING: "TRANSACTIONS_PROCESSING",
+};
+
+export const PURCHASE_STATUS = {
+  SUCCESS: "success",
+  PROCESSING: "processing",
+};
